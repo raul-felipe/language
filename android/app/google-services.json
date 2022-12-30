@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "388312551536",
+    "project_id": "japanese-review",
+    "storage_bucket": "japanese-review.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:388312551536:android:f84f2c0c5a81d5789de4b5",
+        "android_client_info": {
+          "package_name": "com.example.language"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "388312551536-9r796225j9vos2tbh1thcmat7fm91jbn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKxDffd-eNjWS9J5PtUz1_KYWjhC8kiq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "388312551536-9r796225j9vos2tbh1thcmat7fm91jbn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "388312551536-uvqfbbh7vb38brdc5aqqtlkfit8m85oj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.language"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
