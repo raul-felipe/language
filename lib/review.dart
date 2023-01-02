@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:language/main.dart';
 import 'package:ruby_text/ruby_text.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ReviewPage extends StatefulWidget {
-  final String title;
+  final String user_id;
+  final String deck_id;
 
-  const ReviewPage({super.key, required this.title});
+  const ReviewPage({super.key, required this.user_id, required this.deck_id});
 
   @override
   State<ReviewPage> createState() => _ReviewPageState();
 }
 
 class _ReviewPageState extends State<ReviewPage> {
+  CollectionReference user_collection =
+      FirebaseFirestore.instance.collection('users');
+  CollectionReference deck_collection =
+      FirebaseFirestore.instance.collection('study-deck');
+
   var cartas = [
     {
       "id": "001",
@@ -108,27 +115,27 @@ class _ReviewPageState extends State<ReviewPage> {
   List listReview(List list) {
     List listReview = [];
     for (var element in list) {
-      if (element["aprendizado"] == "aprendido" &&
-          element["proxima_revisao"]
+      if (element["learn-situation"] == "learned" &&
+          element["next-review"]
                   .compareTo(DateUtils.dateOnly(DateTime.now())) <=
               0) {
         listReview.add(element);
       }
     }
     for (var element in list) {
-      if (element["aprendizado"] == "esquecido") {
+      if (element["learn-situation"] == "forgotten") {
         listReview.add(element);
       }
     }
     for (var element in list) {
-      if (element["aprendizado"] == "nao_aprendido") {
+      if (element["learn-situation"] == "new-card") {
         listReview.add(element);
       }
     }
 
     //volta pro menu caso não haja mais cartas
     if (listReview.isEmpty) {
-      listReview.add({"frente": ""});
+      listReview.add({"front": ""});
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -147,19 +154,20 @@ class _ReviewPageState extends State<ReviewPage> {
 
   late Widget back_card;
 
-  void nextCard(String answer_type, int sequence) {
+  void nextCard(String answerType, int sequence) {
+    print(list_review);
     setState(() {
       bottom_buttons = showBackCardButton();
       back_card = hideBackCardWidget();
 
       //atualiza campos da carta
-      list_review[current_card]["proxima_revisao"] =
-          DateUtils.dateOnly(DateTime.now())
-              .add(Duration(days: list_review[current_card]["sequencia"]));
-      if (answer_type == "aprendido") sequence++;
-      list_review[current_card]["sequencia"] = sequence;
-      list_review[current_card]["aprendizado"] = answer_type;
-      list_review[current_card]["ultima_revisao"] =
+      list_review[current_card]["next-review"] =
+          DateUtils.dateOnly(DateTime.now()).add(
+              Duration(days: list_review[current_card]["strike-sequence"]));
+      if (answerType == "learned") sequence++;
+      list_review[current_card]["strike-sequence"] = sequence;
+      list_review[current_card]["learn-situation"] = answerType;
+      list_review[current_card]["last-review"] =
           DateUtils.dateOnly(DateTime.now());
 
       //chama a próxima carta
@@ -168,6 +176,41 @@ class _ReviewPageState extends State<ReviewPage> {
         current_card = 0;
         list_review = listReview(list_review);
       }
+    });
+  }
+
+  void getCards() {
+    user_collection
+        .doc(widget.user_id)
+        .collection('study-deck')
+        .doc(widget.deck_id)
+        .collection('cards')
+        .get()
+        .then((value) async {
+      var cardIterator = value.docs.iterator;
+      List cardsList = [];
+      while (cardIterator.moveNext()) {
+        await deck_collection
+            .doc(widget.deck_id)
+            .collection('cards')
+            .doc(cardIterator.current.id)
+            .get()
+            .then((value) {
+          cardsList.add({
+            'id': cardIterator.current.id,
+            'last-review': cardIterator.current.data()['last-review'],
+            'learn-situation': cardIterator.current.data()['learn-situation'],
+            'next-review': cardIterator.current.data()['next-review'],
+            'strike-sequence': cardIterator.current.data()['strike-sequence'],
+            'front': value.data()!['front'],
+            'back': value.data()!['back'],
+            'pack': value.data()!['pack'],
+          });
+        });
+      }
+      setState(() {
+        list_review = listReview(cardsList);
+      });
     });
   }
 
@@ -182,19 +225,20 @@ class _ReviewPageState extends State<ReviewPage> {
             //errado
             ElevatedButton(
                 onPressed: () {
-                  nextCard("esquecido", 0);
+                  nextCard("forgotten", 0);
                 },
                 child: Icon(Icons.cancel)),
             //repetir
             ElevatedButton(
                 onPressed: () {
-                  nextCard("repetir", 1);
+                  nextCard("review", 1);
                 },
                 child: Icon(Icons.repeat_on_outlined)),
             //aprendido
             ElevatedButton(
                 onPressed: () {
-                  nextCard("aprendido", list_review[current_card]["sequencia"]);
+                  nextCard(
+                      "learned", list_review[current_card]["strike-sequence"]);
                 },
                 child: Icon(Icons.check_box)),
           ],
@@ -223,7 +267,7 @@ class _ReviewPageState extends State<ReviewPage> {
     return Container(
       color: Colors.blue,
       child: Center(
-          child: Text(list_review[current_card]["tras"],
+          child: Text(list_review[current_card]["back"],
               style: TextStyle(fontSize: 24))),
     );
   }
@@ -235,7 +279,7 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 
   Widget rubyText(String text) {
-    List<RubyTextData> ruby_text_list = [];
+    List<RubyTextData> rubyTextList = [];
 
     var it = text.runes.iterator;
 
@@ -251,14 +295,14 @@ class _ReviewPageState extends State<ReviewPage> {
       }
       it.movePrevious();
 
-      ruby_text_list.add(RubyTextData(
+      rubyTextList.add(RubyTextData(
         letter,
         ruby: furigana,
       ));
     }
 
     return RubyText(
-      ruby_text_list,
+      rubyTextList,
       style: const TextStyle(fontSize: 24),
     );
   }
@@ -288,7 +332,8 @@ class _ReviewPageState extends State<ReviewPage> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    list_review = listReview(cartas);
+    // list_review = listReview(cartas);
+    getCards();
     back_card = hideBackCardWidget();
     bottom_buttons = showBackCardButton();
   }
@@ -297,7 +342,7 @@ class _ReviewPageState extends State<ReviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(widget.user_id),
       ),
       body: Center(
         child: Column(
@@ -306,7 +351,7 @@ class _ReviewPageState extends State<ReviewPage> {
               child: Container(
                 color: Colors.deepOrange,
                 child: Center(
-                  child: rubyText(list_review[current_card]["frente"]),
+                  child: rubyText(list_review[current_card]["front"]),
                   // child: Text(list_review[current_card]["frente"],
                   //     style: TextStyle(fontSize: 42)),
                 ),

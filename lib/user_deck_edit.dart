@@ -23,7 +23,7 @@ class _UserDeckEditPageState extends State<UserDeckEditPage> {
 
   final text_controller = TextEditingController();
 
-  String selected_deck = "";
+  String selected_deck_id = "";
 
   @override
   void initState() {
@@ -70,7 +70,7 @@ class _UserDeckEditPageState extends State<UserDeckEditPage> {
             ),
           ),
           onChanged: (value) {
-            selected_deck = remain_user_deck_doc_list
+            selected_deck_id = remain_user_deck_doc_list
                 .elementAt(dropdowm_list.indexOf(value.toString()))
                 .id;
           },
@@ -104,9 +104,7 @@ class _UserDeckEditPageState extends State<UserDeckEditPage> {
         .then((value) {
       //quando concluir de carregar a lista de ID dos decks do usuario carrega a lista de decks gerais
 
-      getDeckData(value.docs
-          .map((e) => (e.data() as Map)['deck-id'].toString())
-          .toList());
+      getDeckData(value.docs.map((e) => e.id).toList());
     });
   }
 
@@ -126,21 +124,39 @@ class _UserDeckEditPageState extends State<UserDeckEditPage> {
                 Expanded(child: dropdown_builder),
                 IconButton(
                   onPressed: () {
-                    if (selected_deck != "") {
-                      user_collection
+                    if (selected_deck_id != "") {
+                      var user_deck_reference = user_collection
                           .doc(widget.title)
                           .collection('study-deck')
-                          .doc()
-                          .set({
-                        'deck-id': selected_deck,
-                      }).whenComplete(() {
-                        setState(() {
-                          dropdown_builder = DropdownSearch(
-                            selectedItem: "",
-                          );
-                          selected_deck = "";
-                          getUserDeckData();
-                        });
+                          .doc(selected_deck_id);
+                      user_deck_reference.set({"deck-id": selected_deck_id});
+
+                      deck_collection
+                          .doc(selected_deck_id)
+                          .collection('cards')
+                          .get()
+                          .then((value) {
+                        var card_iterator = value.docs.iterator;
+                        while (card_iterator.moveNext()) {
+                          user_deck_reference
+                              .collection('cards')
+                              .doc(card_iterator.current.id)
+                              .set({
+                            // 'card-id': card_iterator.current.id,
+                            'last-review': DateUtils.dateOnly(DateTime.now()),
+                            'learn-situation': 'new-card',
+                            'next-review': DateUtils.dateOnly(DateTime.now()),
+                            'strike-sequence': 0,
+                          });
+                        }
+                      });
+
+                      setState(() {
+                        dropdown_builder = DropdownSearch(
+                          selectedItem: "",
+                        );
+                        selected_deck_id = "";
+                        getUserDeckData();
                       });
                     }
                   },

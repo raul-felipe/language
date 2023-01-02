@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:language/deck_edit.dart';
 import 'package:language/review.dart';
@@ -5,7 +6,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:language/user_deck_edit.dart';
 import 'firebase_options.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -36,15 +41,17 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   List list = ['Kanji N4', 'Vocabulary N4', 'Phrases N4'];
 
+  CollectionReference user_collection =
+      FirebaseFirestore.instance.collection('users');
+  CollectionReference deck_collection =
+      FirebaseFirestore.instance.collection('study-deck');
+
   @override
   void initState() {
-    Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
     super.initState();
   }
 
-  Dialog showDeckDetailsDialog(context, index) {
+  Dialog showDeckDetailsDialog(context, String deck_id) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: Container(
@@ -76,8 +83,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) =>
-                              ReviewPage(title: list[index].toString()),
+                          builder: (context) => ReviewPage(
+                            user_id: "ffQopJNIYgLjhdfuWc0Y",
+                            deck_id: deck_id,
+                          ),
                         ),
                       );
                     },
@@ -117,26 +126,55 @@ class _MyHomePageState extends State<MyHomePage> {
           )
         ],
       ),
-      body: Center(
-          child: ListView.builder(
-              itemCount: list.length,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: user_collection
+            .doc('ffQopJNIYgLjhdfuWc0Y')
+            .collection('study-deck')
+            .snapshots(),
+        builder: (context, snapshot) {
+          return ListView.builder(
+              itemCount: snapshot.data?.size,
               itemBuilder: ((context, index) {
                 return ListTile(
-                  title: Text(list[index]),
+                  title: StreamBuilder(
+                    stream: deck_collection
+                        .doc((snapshot.data?.docs.elementAt(index).data()
+                                as Map)['deck-id']
+                            .toString())
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      return Text(snapshot.data!['deck-name']);
+                    },
+                  ),
+                  //Text((snapshot.data?.docs.elementAt(index).data() as Map)['deck-id']),
                   onTap: () {
                     showDialog(
                       context: context,
-                      builder: (context) =>
-                          showDeckDetailsDialog(context, index),
+                      builder: (context) => showDeckDetailsDialog(
+                          context,
+                          (snapshot.data?.docs.elementAt(index).data()
+                                  as Map)['deck-id']
+                              .toString()),
                     );
                   },
                 );
-              }))),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => {},
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+              }));
+        },
       ),
+      // ListView.builder(
+      //     itemCount: list.length,
+      //     itemBuilder: ((context, index) {
+      //       return ListTile(
+      //         title: Text(list[index]),
+      //         onTap: () {
+      //           showDialog(
+      //             context: context,
+      //             builder: (context) =>
+      //                 showDeckDetailsDialog(context, index),
+      //           );
+      //         },
+      //       );
+      //     }))),
     );
   }
 }

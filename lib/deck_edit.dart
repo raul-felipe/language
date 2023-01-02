@@ -84,7 +84,7 @@ class _DeckEditPageState extends State<DeckEditPage> {
                   onPressed: () {
                     setState(() {
                       db.collection('study-deck').doc().set({
-                        'deck-id': FieldValue.serverTimestamp(),
+                        // 'deck-id': FieldValue.serverTimestamp(),
                         'deck-name': text_controller.text,
                       }).then((value) {
                         text_controller.clear();
